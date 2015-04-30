@@ -55,7 +55,10 @@ module GoogleDrive
     end
 
     def upload_update(row)
-      @session.request(:put, row.edit_url, :data => row.as_update_xml, :header => {"Content-Type" => "application/atom+xml;charset=utf-8", "If-Match" => "*"})
+      url = row.edit_url
+      xml = row.as_update_xml
+      etag = row.etag
+      @session.request(:put, url, :data => xml, :header => {"Content-Type" => "application/atom+xml;charset=utf-8", "If-Match" => etag})
     end
 
     def new_query
