@@ -14,10 +14,18 @@ module GoogleDrive
       row = new
       row.accept_entry entry
     end
+    # V3 new entry xml
 
-    ENTRY_NSX = %Q|<entry xmlns='http://www.w3.org/2005/Atom' xmlns:gsx='http://schemas.google.com/spreadsheets/2006/extended'>|.freeze
+    # <entry xmlns="http://www.w3.org/2005/Atom" xmlns:gsx="http://schemas.google.com/spreadsheets/2006/extended">
+    #   <gsx:hours>1</gsx:hours>
+    #   <gsx:ipm>1</gsx:ipm>
+    #   <gsx:items>60</gsx:items>
+    #   <gsx:name>Elizabeth Bennet</gsx:name>
+    # </entry>
 
-    attr_reader :entry, :list
+    ENTRY_NSX = %Q|<entry xmlns="http://www.w3.org/2005/Atom" xmlns:gsx="http://schemas.google.com/spreadsheets/2006/extended">|.freeze
+
+    attr_reader :entry, :list, :etag
     # instance methods
 
     def dup
@@ -72,17 +80,36 @@ module GoogleDrive
       xml.concat('</entry>')
     end
 
+    #V3 list feed entry
+    # <entry gd:etag='"S0wCTlpIIip7ImA0X0QI"'>
+    #   <id>https://spreadsheets.google.com/feeds/list/key/worksheetId/private/full/rowId</id>
+    #   <updated>2006-11-17T18:23:45.173Z</updated>
+    #   <category scheme="http://schemas.google.com/spreadsheets/2006"
+    #     term="http://schemas.google.com/spreadsheets/2006#list"/>
+    #   <title type="text">Bingley</title>
+    #   <content type="text">Hours: 10, Items: 2, IPM: 0.0033</content>
+    #   <link rel="self" type="application/atom+xml"
+    #     href="https://spreadsheets.google.com/feeds/list/key/worksheetId/private/full/rowId"/>
+    #   <link rel="edit" type="application/atom+xml"
+    #     href="https://spreadsheets.google.com/feeds/list/key/worksheetId/private/full/rowId/version"/>
+    #   <gsx:name>Bingley</gsx:name>
+    #   <gsx:hours>20</gsx:hours>
+    #   <gsx:items>4</gsx:items>
+    #   <gsx:ipm>0.0033</gsx:ipm>
+    # </entry>
+
     def as_update_xml
       raise ArgumentError.new("can't update: entry not supplied") if @entry.nil?
       each do |k, v|
         node = @entry.at_xpath("gsx:#{k}")
         node.content = h(v)
       end
-      @entry.to_xml.sub!('<entry>', ENTRY_NSX)
+      @entry.to_xml.sub!(%r{<entry.+>}, ENTRY_NSX.dup)
     end
 
     def accept_entry(entry)
       @entry = entry
+      @etag = entry['gd:etag']
       entry.xpath('gsx:*').each do |field|
         store field.name.to_sym, field.text
       end
